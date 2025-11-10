@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Stream Finder - Búsqueda Inteligente en Tiempo Real</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="particles" id="particles"></div>
+    
+    <div class="app-container">
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <div class="logo">
+                    <div class="logo-icon"></div>
+                    <h1>AI Stream</h1>
+                </div>
+                <button class="new-search-btn" onclick="newSearch()">
+                    <span class="btn-glow"></span>
+                    Nueva Búsqueda
+                </button>
+            </div>
+            <div class="search-history" id="searchHistory">
+                <div class="history-title">Búsquedas Recientes</div>
+            </div>
+        </aside>
+
+        <main class="main-content">
+            <div class="search-section" id="searchSection">
+                <div class="welcome-message">
+                    <h2 class="glitch" data-text="Búsqueda Inteligente en Tiempo Real">Búsqueda Inteligente en Tiempo Real</h2>
+                    <p>IA analizando millones de fuentes en internet • Imágenes reales • Streaming detectado automáticamente</p>
+                </div>
+                <div class="search-container">
+                    <div class="search-wrapper">
+                        <input type="text" id="searchInput" placeholder="Buscar películas, series, documentales..." class="search-input">
+                        <div class="search-line"></div>
+                    </div>
+                    <button onclick="searchContent()" class="search-btn">
+                        <span class="btn-text">Buscar con IA</span>
+                        <span class="btn-glow"></span>
+                    </button>
+                </div>
+                <div class="ai-status">
+                    <span class="status-dot"></span>
+                    <span>IA en línea • Conectado a fuentes globales</span>
+                </div>
+            </div>
+
+            <div class="results-section hidden" id="resultsSection">
+                <div class="results-header">
+                    <button onclick="backToSearch()" class="back-btn">
+                        <span class="arrow"></span>
+                        Volver
+                    </button>
+                    <div class="search-info">
+                        <h3 id="searchQuery"></h3>
+                        <span class="results-count" id="resultsCount"></span>
+                    </div>
+                </div>
+                <div class="ai-thinking hidden" id="aiThinking">
+                    <div class="scanner">
+                        <div class="scanner-line"></div>
+                    </div>
+                    <div class="thinking-text">
+                        <p class="main-text">IA escaneando internet en tiempo real...</p>
+                        <p class="sub-text" id="scanStatus">Analizando fuentes de streaming</p>
+                    </div>
+                </div>
+                <div class="results-grid" id="resultsGrid"></div>
+            </div>
+
+            <div class="player-section hidden" id="playerSection">
+                <div class="player-header">
+                    <button onclick="backToResults()" class="back-btn">
+                        <span class="arrow"></span>
+                        Resultados
+                    </button>
+                </div>
+                <div class="player-container">
+                    <div class="video-player" id="videoPlayer"></div>
+                    <div class="player-controls">
+                        <div class="progress-bar" onclick="seekVideo(event)">
+                            <div class="progress" id="progress"></div>
+                            <div class="progress-handle" id="progressHandle"></div>
+                        </div>
+                        <div class="controls-row">
+                            <div class="controls-left">
+                                <button onclick="togglePlay()" id="playBtn" class="control-btn"></button>
+                                <button onclick="skipTime(-10)" class="control-btn small">-10s</button>
+                                <button onclick="skipTime(10)" class="control-btn small">+10s</button>
+                                <span id="timeDisplay">0:00 / 0:00</span>
+                            </div>
+                            <div class="controls-right">
+                                <button onclick="toggleMute()" id="muteBtn" class="control-btn"></button>
+                                <button onclick="toggleFullscreen()" class="control-btn"></button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="content-info" id="contentInfo">
+                    <div class="info-header">
+                        <div class="poster-mini" id="posterMini"></div>
+                        <div class="title-section">
+                            <h2 id="contentTitle"></h2>
+                            <div class="meta-info" id="metaInfo"></div>
+                        </div>
+                    </div>
+                    <div class="info-body">
+                        <p id="contentDescription"></p>
+                        <div class="sources-detected" id="sourcesDetected"></div>
+                    </div>
+                    <div class="episodes-section" id="episodesSection"></div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
