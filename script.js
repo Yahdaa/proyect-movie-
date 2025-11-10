@@ -2,7 +2,8 @@
 const EXTERNAL_SOURCES = [
     { name: 'Cuevana', url: 'https://play.cuevana.life', priority: 1 },
     { name: 'Pandrama', url: 'https://pandrama.com', priority: 2 },
-    { name: 'DoramasFlix', url: 'https://doramasflix.co', priority: 1 }
+    { name: 'DoramasFlix', url: 'https://doramasflix.co', priority: 1, type: 'kdrama' },
+    { name: 'AsianCrush', url: 'https://asiancrush.com', priority: 2, type: 'kdrama' }
 ];
 
 const TMDB_API_KEY = '24d863d54c86392e6e1df55b9a328755';
@@ -321,6 +322,21 @@ async function detectExternalSources(title, year, type) {
         quality: '720p',
         priority: 3
     });
+    
+    const isAsian = currentContent.origin_country && 
+        (currentContent.origin_country.includes('KR') || 
+         currentContent.origin_country.includes('JP') ||
+         currentContent.origin_country.includes('CN'));
+    
+    if (isAsian || type === 'tv') {
+        detectedSources.push({
+            name: 'DoramasFlix',
+            embedUrl: `https://doramasflix.co/ver/${encodeURIComponent(title.toLowerCase().replace(/\s+/g, '-'))}`,
+            quality: 'HD',
+            priority: 1,
+            badge: 'K-Drama'
+        });
+    }
     
     return detectedSources;
 }
