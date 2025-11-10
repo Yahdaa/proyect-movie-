@@ -437,11 +437,21 @@ function loadPlayer(title, type, source) {
 
 function playFromSource(sourceIndex) {
     if (detectedSources[sourceIndex]) {
+        currentSourceIndex = sourceIndex;
         const source = detectedSources[sourceIndex];
         const title = currentContent.title || currentContent.name;
         showNotification(`Cargando ${source.name}...`);
         setTimeout(() => {
-            loadPlayer(title, currentContent.type, source);
+            // Aplicar idioma actual
+            let embedUrl = source.embedUrl;
+            if (currentLanguage !== 'es') {
+                if (source.name === 'VidSrc' || source.name === '2Embed') {
+                    embedUrl = embedUrl.includes('?')
+                        ? `${embedUrl}&lang=${currentLanguage}`
+                        : `${embedUrl}?lang=${currentLanguage}`;
+                }
+            }
+            loadPlayer(title, currentContent.type, {...source, embedUrl});
             document.getElementById('videoPlayer').scrollIntoView({ behavior: 'smooth' });
         }, 500);
     }
@@ -560,6 +570,56 @@ function toggleFullscreen() {
     } else {
         document.exitFullscreen();
     }
+}
+
+let currentLanguage = 'es';
+let currentSourceIndex = 0;
+
+function changeLanguage() {
+    const language = document.getElementById('languageSelector').value;
+    currentLanguage = language;
+    
+    if (!currentContent) return;
+    
+    showNotification(`Cambiando a ${getLanguageName(language)}...`);
+    
+    // Recargar fuente con idioma seleccionado
+    setTimeout(() => {
+        if (detectedSources[currentSourceIndex]) {
+            const source = detectedSources[currentSourceIndex];
+            const title = currentContent.title || currentContent.name;
+            const type = currentContent.type;
+            
+            // Modificar URL según idioma
+            let embedUrl = source.embedUrl;
+            
+            // VidSrc soporta parámetro de idioma
+            if (source.name === 'VidSrc') {
+                embedUrl = embedUrl.includes('?') 
+                    ? `${embedUrl}&lang=${language}` 
+                    : `${embedUrl}?lang=${language}`;
+            }
+            
+            // 2Embed soporta parámetro de idioma
+            if (source.name === '2Embed') {
+                embedUrl = embedUrl.includes('?')
+                    ? `${embedUrl}&lang=${language}`
+                    : `${embedUrl}?lang=${language}`;
+            }
+            
+            loadPlayer(title, type, {...source, embedUrl});
+        }
+    }, 500);
+}
+
+function getLanguageName(code) {
+    const names = {
+        'es': 'Español',
+        'en': 'English',
+        'lat': 'Latino',
+        'sub': 'Subtitulado'
+    };
+    return names[code] || code;
 }
 
 function showNotification(message) {

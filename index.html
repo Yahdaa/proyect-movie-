@@ -96,8 +96,19 @@
                             <div class="progress" id="progress"></div>
                         </div>
                         <div class="controls-row">
-                            <button onclick="togglePlay()" id="playBtn" class="control-btn">▶</button>
-                            <button onclick="toggleFullscreen()" class="control-btn">⛶</button>
+                            <div class="controls-left">
+                                <button onclick="togglePlay()" id="playBtn" class="control-btn">▶</button>
+                                <span id="timeDisplay" style="color:#8e8ea0;font-size:13px;">0:00</span>
+                            </div>
+                            <div class="controls-right">
+                                <select id="languageSelector" class="language-selector" onchange="changeLanguage()">
+                                    <option value="es">Español</option>
+                                    <option value="en">English</option>
+                                    <option value="lat">Latino</option>
+                                    <option value="sub">Subtitulado</option>
+                                </select>
+                                <button onclick="toggleFullscreen()" class="control-btn">⛶</button>
+                            </div>
                         </div>
                     </div>
                 </div>
