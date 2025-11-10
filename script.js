@@ -218,12 +218,18 @@ async function searchContent() {
     document.getElementById('aiThinking').classList.remove('hidden');
     document.getElementById('resultsGrid').innerHTML = '';
 
-    const statuses = ['Buscando...', 'Analizando fuentes...', 'Obteniendo resultados...'];
+    const statuses = [
+        'Buscando en bases de datos...',
+        'IA analizando contenido...',
+        'Detectando fuentes externas...',
+        'Obteniendo imágenes...',
+        'Procesando resultados...'
+    ];
     let statusIndex = 0;
     const statusInterval = setInterval(() => {
         document.getElementById('scanStatus').textContent = statuses[statusIndex];
         statusIndex = (statusIndex + 1) % statuses.length;
-    }, 400);
+    }, 600);
 
     try {
         const [movies, series] = await Promise.all([
@@ -382,22 +388,44 @@ async function openContent(content) {
 
 async function loadEpisodes(seriesId, season) {
     try {
-        const data = await fetch(`${TMDB_BASE}/tv/${seriesId}/season/${season}?api_key=${TMDB_API_KEY}&language=es-ES`).then(r => r.json());
+        const seriesData = await fetch(`${TMDB_BASE}/tv/${seriesId}?api_key=${TMDB_API_KEY}&language=es-ES`).then(r => r.json());
+        const totalSeasons = seriesData.number_of_seasons;
         
         const episodesSection = document.getElementById('episodesSection');
-        episodesSection.innerHTML = '<h3>Episodios Disponibles</h3><div class="episodes-grid" id="episodesGrid"></div>';
+        
+        let seasonsHTML = '<div style="margin-bottom:20px;"><select id="seasonSelector" class="language-selector" onchange="changeSeason()" style="width:auto;">';
+        for (let i = 1; i <= totalSeasons; i++) {
+            seasonsHTML += `<option value="${i}" ${i === season ? 'selected' : ''}>Temporada ${i}</option>`;
+        }
+        seasonsHTML += '</select></div>';
+        
+        episodesSection.innerHTML = `
+            <h3>Episodios - ${totalSeasons} Temporada${totalSeasons > 1 ? 's' : ''}</h3>
+            ${seasonsHTML}
+            <div class="episodes-grid" id="episodesGrid"></div>
+        `;
+        
+        const data = await fetch(`${TMDB_BASE}/tv/${seriesId}/season/${season}?api_key=${TMDB_API_KEY}&language=es-ES`).then(r => r.json());
         
         const grid = document.getElementById('episodesGrid');
+        grid.innerHTML = '';
         
-        data.episodes.forEach((ep) => {
+        data.episodes.forEach((ep, index) => {
             const card = document.createElement('div');
             card.className = 'episode-card';
+            card.style.animation = `slideUp .4s ease ${index * 0.05}s both`;
             card.onclick = () => playEpisode(ep, season);
 
+            const airDate = ep.air_date ? new Date(ep.air_date).toLocaleDateString('es-ES', {day: 'numeric', month: 'short', year: 'numeric'}) : '';
+            
             card.innerHTML = `
-                <h4>S${season}E${ep.episode_number} - ${ep.name}</h4>
+                <h4>Ep ${ep.episode_number}: ${ep.name}</h4>
+                <p style="font-size:12px;color:#8e8ea0;margin:5px 0;">${airDate}</p>
                 <p>${ep.overview || 'Sin descripción'}</p>
-                <p style="margin-top:8px;color:#8e8ea0;font-size:12px;">${ep.runtime || 45} min</p>
+                <div style="display:flex;gap:10px;margin-top:10px;font-size:12px;color:#10a37f;">
+                    <span>${ep.runtime || 45} min</span>
+                    <span>${ep.vote_average ? ep.vote_average.toFixed(1) : 'N/A'}/10</span>
+                </div>
             `;
 
             grid.appendChild(card);
@@ -405,6 +433,11 @@ async function loadEpisodes(seriesId, season) {
     } catch (error) {
         console.error('Error:', error);
     }
+}
+
+function changeSeason() {
+    const season = parseInt(document.getElementById('seasonSelector').value);
+    loadEpisodes(currentContent.id, season);
 }
 
 function loadPlayer(title, type, source) {
