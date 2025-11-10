@@ -280,19 +280,56 @@ function displayResults(results) {
 
 async function detectExternalSources(title, year, type) {
     detectedSources = [];
+    const searchQuery = `${title} ${year || ''}`.toLowerCase().replace(/[^a-z0-9\s]/g, '').replace(/\s+/g, '-');
     
-    for (const source of EXTERNAL_SOURCES) {
-        const available = Math.random() > 0.2;
-        if (available) {
-            detectedSources.push({
-                name: source.name,
-                url: source.url,
-                quality: ['HD', '1080p', '720p'][Math.floor(Math.random() * 3)],
-                embedUrl: `${source.url}/embed/${encodeURIComponent(title)}`,
-                priority: source.priority
-            });
-        }
-    }
+    // Cuevana
+    detectedSources.push({
+        name: 'Cuevana',
+        url: 'https://play.cuevana.life',
+        quality: '1080p',
+        embedUrl: `https://play.cuevana.life/embed/${searchQuery}`,
+        priority: 1
+    });
+    
+    // Pandrama
+    detectedSources.push({
+        name: 'Pandrama',
+        url: 'https://pandrama.com',
+        quality: 'HD',
+        embedUrl: `https://pandrama.com/player/${searchQuery}`,
+        priority: 2
+    });
+    
+    // DoramasFlix
+    detectedSources.push({
+        name: 'DoramasFlix',
+        url: 'https://doramasflix.co',
+        quality: '720p',
+        embedUrl: `https://doramasflix.co/ver/${searchQuery}`,
+        priority: 1
+    });
+    
+    // VidSrc (API de scraping real)
+    detectedSources.push({
+        name: 'VidSrc',
+        url: 'https://vidsrc.to',
+        quality: '1080p',
+        embedUrl: type === 'movie' 
+            ? `https://vidsrc.to/embed/movie/${currentContent.id}`
+            : `https://vidsrc.to/embed/tv/${currentContent.id}`,
+        priority: 1
+    });
+    
+    // 2Embed (API de scraping real)
+    detectedSources.push({
+        name: '2Embed',
+        url: 'https://www.2embed.to',
+        quality: 'HD',
+        embedUrl: type === 'movie'
+            ? `https://www.2embed.to/embed/tmdb/movie?id=${currentContent.id}`
+            : `https://www.2embed.to/embed/tmdb/tv?id=${currentContent.id}`,
+        priority: 2
+    });
     
     detectedSources.sort((a, b) => a.priority - b.priority);
     return detectedSources;
@@ -412,9 +449,13 @@ function loadPlayer(title, type, source) {
                 height="100%" 
                 frameborder="0" 
                 allowfullscreen 
-                allow="autoplay; encrypted-media"
+                allow="autoplay; encrypted-media; picture-in-picture"
+                scrolling="no"
+                referrerpolicy="origin"
             ></iframe>
         `;
+        isPlaying = true;
+        document.getElementById('playBtn').textContent = '⏸';
     } else {
         player.innerHTML = `
             <div style="width:100%;height:100%;background:#171717;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:20px;padding:20px;text-align:center;">
@@ -444,30 +485,42 @@ async function playEpisode(episode, season) {
     const title = `${currentContent.name} - S${season}E${episode.episode_number}: ${episode.name}`;
     document.getElementById('contentTitle').textContent = title;
     
-    showNotification('Detectando fuentes...');
+    showNotification('Cargando episodio...');
     
-    const sources = await detectExternalSources(
-        `${currentContent.name} S${season}E${episode.episode_number}`,
-        '',
-        'episode'
-    );
+    // Crear fuentes con episodio específico
+    detectedSources = [
+        {
+            name: 'VidSrc',
+            embedUrl: `https://vidsrc.to/embed/tv/${currentContent.id}/${season}/${episode.episode_number}`,
+            quality: '1080p',
+            priority: 1
+        },
+        {
+            name: '2Embed',
+            embedUrl: `https://www.2embed.to/embed/tmdb/tv?id=${currentContent.id}&s=${season}&e=${episode.episode_number}`,
+            quality: 'HD',
+            priority: 2
+        },
+        {
+            name: 'Cuevana',
+            embedUrl: `https://play.cuevana.life/serie/${currentContent.id}/${season}/${episode.episode_number}`,
+            quality: '720p',
+            priority: 3
+        }
+    ];
     
-    if (sources.length > 0) {
-        loadPlayer(title, 'episode', sources[0]);
-        
-        document.getElementById('sourcesDetected').innerHTML = `
-            <h4>${sources.length} Fuentes Disponibles</h4>
-            <div class="sources-grid">
-                ${sources.map((s, i) => `
-                    <div class="source-badge" onclick="playFromSource(${i})">
-                        ${s.name} - ${s.quality}
-                    </div>
-                `).join('')}
-            </div>
-        `;
-    } else {
-        loadPlayer(title, 'episode', null);
-    }
+    loadPlayer(title, 'episode', detectedSources[0]);
+    
+    document.getElementById('sourcesDetected').innerHTML = `
+        <h4>${detectedSources.length} Fuentes Disponibles</h4>
+        <div class="sources-grid">
+            ${detectedSources.map((s, i) => `
+                <div class="source-badge" onclick="playFromSource(${i})">
+                    ${s.name} - ${s.quality}
+                </div>
+            `).join('')}
+        </div>
+    `;
     
     document.getElementById('videoPlayer').scrollIntoView({ behavior: 'smooth', block: 'center' });
 }
