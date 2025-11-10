@@ -2,8 +2,6 @@
 const EXTERNAL_SOURCES = [
     { name: 'Cuevana', url: 'https://play.cuevana.life', priority: 1 },
     { name: 'Pandrama', url: 'https://pandrama.com', priority: 2 },
-    { name: 'Pandrama IO', url: 'https://pandrama.io', priority: 2 },
-    { name: 'BetaSeries', url: 'https://www.betaseries.com', priority: 3 },
     { name: 'DoramasFlix', url: 'https://doramasflix.co', priority: 1 }
 ];
 
@@ -15,20 +13,19 @@ let currentContent = null;
 let searchHistory = [];
 let isPlaying = false;
 let detectedSources = [];
+let lastSection = 'home';
 
 // Inicialización
 document.addEventListener('DOMContentLoaded', () => {
     loadSearchHistory();
-    loadTrending();
+    loadHome();
     
     document.getElementById('searchInput').addEventListener('keypress', (e) => {
         if (e.key === 'Enter') searchContent();
     });
     
-    document.querySelector('.main-content').addEventListener('click', () => {
-        if (window.innerWidth <= 768) {
-            document.getElementById('sidebar').classList.remove('active');
-        }
+    document.getElementById('searchInputTop').addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') searchFromTop();
     });
 });
 
@@ -36,56 +33,115 @@ function toggleSidebar() {
     document.getElementById('sidebar').classList.toggle('active');
 }
 
-function showSection(section) {
-    document.querySelectorAll('.nav-item').forEach(item => item.classList.remove('active'));
-    event.target.closest('.nav-item').classList.add('active');
-    
-    if (section === 'trending') {
-        loadTrending();
-    } else if (section === 'movies') {
-        searchByType('movie');
-    } else if (section === 'series') {
-        searchByType('tv');
+// ========== NAVEGACIÓN ==========
+function showHome() {
+    hideAllSections();
+    document.getElementById('homeSection').classList.remove('hidden');
+    setActiveNav('home');
+    lastSection = 'home';
+    if (!document.getElementById('trendingCarousel').children.length) {
+        loadHome();
     }
 }
 
-async function loadTrending() {
+function showMovies() {
+    hideAllSections();
+    document.getElementById('resultsSection').classList.remove('hidden');
+    document.getElementById('searchQuery').textContent = 'Películas Populares';
+    setActiveNav('movies');
+    lastSection = 'movies';
+    loadPopularMovies();
+}
+
+function showSeries() {
+    hideAllSections();
+    document.getElementById('resultsSection').classList.remove('hidden');
+    document.getElementById('searchQuery').textContent = 'Series Populares';
+    setActiveNav('series');
+    lastSection = 'series';
+    loadPopularSeries();
+}
+
+function showMyList() {
+    hideAllSections();
+    document.getElementById('resultsSection').classList.remove('hidden');
+    document.getElementById('searchQuery').textContent = 'Mi Lista';
+    setActiveNav('mylist');
+    lastSection = 'mylist';
+    loadMyList();
+}
+
+function showSearch() {
+    document.getElementById('searchModal').classList.remove('hidden');
+    document.getElementById('searchInput').focus();
+}
+
+function closeSearch() {
+    document.getElementById('searchModal').classList.add('hidden');
+}
+
+function hideAllSections() {
+    document.getElementById('homeSection').classList.add('hidden');
+    document.getElementById('resultsSection').classList.add('hidden');
+    document.getElementById('playerSection').classList.add('hidden');
+    document.getElementById('searchModal').classList.add('hidden');
+}
+
+function setActiveNav(section) {
+    document.querySelectorAll('.nav-item').forEach(item => {
+        item.classList.remove('active');
+        if (item.dataset.section === section) {
+            item.classList.add('active');
+        }
+    });
+}
+
+function backToHome() {
+    if (lastSection === 'home') {
+        showHome();
+    } else if (lastSection === 'movies') {
+        showMovies();
+    } else if (lastSection === 'series') {
+        showSeries();
+    } else {
+        showHome();
+    }
+}
+
+function backFromPlayer() {
+    document.getElementById('playerSection').classList.add('hidden');
+    document.getElementById('resultsSection').classList.remove('hidden');
+}
+
+// ========== CARGAR CONTENIDO ==========
+async function loadHome() {
+    await Promise.all([
+        loadCarousel('trendingCarousel', `${TMDB_BASE}/trending/all/day?api_key=${TMDB_API_KEY}&language=es-ES`),
+        loadCarousel('moviesCarousel', `${TMDB_BASE}/movie/popular?api_key=${TMDB_API_KEY}&language=es-ES`),
+        loadCarousel('seriesCarousel', `${TMDB_BASE}/tv/popular?api_key=${TMDB_API_KEY}&language=es-ES`),
+        loadCarousel('actionCarousel', `${TMDB_BASE}/discover/movie?api_key=${TMDB_API_KEY}&language=es-ES&with_genres=28`)
+    ]);
+}
+
+async function loadCarousel(carouselId, url) {
     try {
-        const data = await fetch(`${TMDB_BASE}/trending/all/day?api_key=${TMDB_API_KEY}&language=es-ES`).then(r => r.json());
-        const grid = document.getElementById('trendingGrid');
-        if (!grid) return;
+        const data = await fetch(url).then(r => r.json());
+        const carousel = document.getElementById(carouselId);
+        carousel.innerHTML = '';
         
-        grid.innerHTML = '';
-        data.results.slice(0, 12).forEach((item, index) => {
-            const card = createMovieCard(item, index);
-            grid.appendChild(card);
+        data.results.slice(0, 20).forEach(item => {
+            const card = createCarouselCard(item);
+            carousel.appendChild(card);
         });
     } catch (error) {
-        console.error('Error loading trending:', error);
+        console.error('Error loading carousel:', error);
     }
 }
 
-async function searchByType(type) {
-    document.getElementById('searchSection').classList.add('hidden');
-    document.getElementById('resultsSection').classList.remove('hidden');
-    document.getElementById('searchQuery').textContent = type === 'movie' ? 'Películas Populares' : 'Series Populares';
-    document.getElementById('aiThinking').classList.remove('hidden');
-    
-    try {
-        const data = await fetch(`${TMDB_BASE}/${type}/popular?api_key=${TMDB_API_KEY}&language=es-ES&page=1`).then(r => r.json());
-        document.getElementById('aiThinking').classList.add('hidden');
-        document.getElementById('resultsCount').textContent = `${data.results.length} resultados`;
-        displayResults(data.results.map(item => ({...item, type})));
-    } catch (error) {
-        document.getElementById('aiThinking').classList.add('hidden');
-    }
-}
-
-function createMovieCard(item, index) {
+function createCarouselCard(item) {
     const card = document.createElement('div');
-    card.className = 'movie-card';
-    card.style.animationDelay = `${index * 0.05}s`;
-    card.onclick = () => openContent({...item, type: item.media_type || 'movie'});
+    card.className = 'carousel-card';
+    card.onclick = () => openContent({...item, type: item.media_type || (item.title ? 'movie' : 'tv')});
     
     const title = item.title || item.name;
     const year = (item.release_date || item.first_air_date || '').split('-')[0];
@@ -93,106 +149,60 @@ function createMovieCard(item, index) {
     const rating = item.vote_average ? item.vote_average.toFixed(1) : 'N/A';
     
     card.innerHTML = `
-        <div class="movie-poster">
+        <div class="carousel-poster">
             ${poster ? `<img src="${poster}" alt="${title}" loading="lazy">` : ''}
             <div class="year-badge">${year || 'N/A'}</div>
             <div class="quality-badge">HD</div>
         </div>
-        <div class="movie-info">
+        <div class="carousel-info">
             <h3>${title}</h3>
-            <div class="movie-meta">
-                <span>${rating}/10</span>
-            </div>
+            <div class="carousel-meta">${rating}/10</div>
         </div>
     `;
     return card;
 }
 
-function playNow() {
-    if (detectedSources.length > 0) {
-        playFromSource(0);
-    } else {
-        showNotification('No hay fuentes disponibles');
-    }
-}
-
-function addToList() {
-    const myList = JSON.parse(localStorage.getItem('myList') || '[]');
-    const item = {
-        id: currentContent.id,
-        title: currentContent.title || currentContent.name,
-        poster: currentContent.poster_path
-    };
-    
-    if (!myList.find(i => i.id === item.id)) {
-        myList.push(item);
-        localStorage.setItem('myList', JSON.stringify(myList));
-        showNotification('Agregado a Mi Lista');
-    } else {
-        showNotification('Ya está en tu lista');
-    }
-}
-
-function shareContent() {
-    const title = currentContent.title || currentContent.name;
-    const url = window.location.href;
-    
-    if (navigator.share) {
-        navigator.share({
-            title: title,
-            text: `Mira ${title} en AI Stream Finder`,
-            url: url
-        });
-    } else {
-        navigator.clipboard.writeText(url);
-        showNotification('Enlace copiado al portapapeles');
-    }
-}
-
-function switchTab(tab) {
-    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-    event.target.classList.add('active');
-    
-    const content = document.getElementById('tabContent');
-    
-    if (tab === 'episodes') {
-        content.innerHTML = '<div class="episodes-section" id="episodesSection"></div>';
-        if (currentContent.type === 'tv') {
-            loadEpisodes(currentContent.id, 1);
-        }
-    } else if (tab === 'similar') {
-        loadSimilar();
-    } else if (tab === 'comments') {
-        content.innerHTML = '<p style="color:#8e8ea0;padding:20px;">Comentarios próximamente...</p>';
-    }
-}
-
-async function loadSimilar() {
-    const type = currentContent.type;
-    const id = currentContent.id;
-    
+async function loadPopularMovies() {
+    document.getElementById('aiThinking').classList.remove('hidden');
     try {
-        const data = await fetch(`${TMDB_BASE}/${type}/${id}/similar?api_key=${TMDB_API_KEY}&language=es-ES`).then(r => r.json());
-        const content = document.getElementById('tabContent');
-        
-        content.innerHTML = '<div class="results-grid" id="similarGrid"></div>';
-        const grid = document.getElementById('similarGrid');
-        
-        data.results.slice(0, 12).forEach((item, index) => {
-            const card = createMovieCard({...item, type}, index);
-            grid.appendChild(card);
-        });
+        const data = await fetch(`${TMDB_BASE}/movie/popular?api_key=${TMDB_API_KEY}&language=es-ES&page=1`).then(r => r.json());
+        document.getElementById('aiThinking').classList.add('hidden');
+        document.getElementById('resultsCount').textContent = `${data.results.length} películas`;
+        displayResults(data.results.map(item => ({...item, type: 'movie'})));
     } catch (error) {
-        console.error('Error loading similar:', error);
+        document.getElementById('aiThinking').classList.add('hidden');
     }
 }
 
-function newSearch() {
-    document.getElementById('searchSection').classList.remove('hidden');
-    document.getElementById('resultsSection').classList.add('hidden');
-    document.getElementById('playerSection').classList.add('hidden');
-    document.getElementById('searchInput').value = '';
-    document.getElementById('searchInput').focus();
+async function loadPopularSeries() {
+    document.getElementById('aiThinking').classList.remove('hidden');
+    try {
+        const data = await fetch(`${TMDB_BASE}/tv/popular?api_key=${TMDB_API_KEY}&language=es-ES&page=1`).then(r => r.json());
+        document.getElementById('aiThinking').classList.add('hidden');
+        document.getElementById('resultsCount').textContent = `${data.results.length} series`;
+        displayResults(data.results.map(item => ({...item, type: 'tv'})));
+    } catch (error) {
+        document.getElementById('aiThinking').classList.add('hidden');
+    }
+}
+
+function loadMyList() {
+    const myList = JSON.parse(localStorage.getItem('myList') || '[]');
+    document.getElementById('resultsCount').textContent = `${myList.length} elementos`;
+    
+    if (myList.length === 0) {
+        document.getElementById('resultsGrid').innerHTML = '<p style="text-align:center;color:#8e8ea0;grid-column:1/-1;">Tu lista está vacía</p>';
+    } else {
+        displayResults(myList);
+    }
+}
+
+// ========== BÚSQUEDA ==========
+function searchFromTop() {
+    const query = document.getElementById('searchInputTop').value.trim();
+    if (!query) return;
+    document.getElementById('searchInput').value = query;
+    searchContent();
 }
 
 async function searchContent() {
@@ -200,20 +210,20 @@ async function searchContent() {
     if (!query) return;
 
     addToHistory(query);
-
-    document.getElementById('searchSection').classList.add('hidden');
+    closeSearch();
+    hideAllSections();
+    
     document.getElementById('resultsSection').classList.remove('hidden');
     document.getElementById('searchQuery').textContent = `"${query}"`;
-    
     document.getElementById('aiThinking').classList.remove('hidden');
     document.getElementById('resultsGrid').innerHTML = '';
 
-    const statuses = ['Escaneando fuentes...', 'Detectando disponibilidad...', 'Obteniendo resultados...'];
+    const statuses = ['Buscando...', 'Analizando fuentes...', 'Obteniendo resultados...'];
     let statusIndex = 0;
     const statusInterval = setInterval(() => {
         document.getElementById('scanStatus').textContent = statuses[statusIndex];
         statusIndex = (statusIndex + 1) % statuses.length;
-    }, 500);
+    }, 400);
 
     try {
         const [movies, series] = await Promise.all([
@@ -234,7 +244,7 @@ async function searchContent() {
     } catch (error) {
         clearInterval(statusInterval);
         document.getElementById('aiThinking').classList.add('hidden');
-        document.getElementById('resultsGrid').innerHTML = '<p style="text-align:center;color:#8e8ea0;grid-column:1/-1;">Error al conectar. Intenta de nuevo.</p>';
+        document.getElementById('resultsGrid').innerHTML = '<p style="text-align:center;color:#8e8ea0;grid-column:1/-1;">Error al buscar</p>';
     }
 }
 
@@ -270,7 +280,6 @@ function displayResults(results) {
                     <span>${rating}/10</span>
                     <span>${item.type === 'tv' ? 'Serie' : 'Película'}</span>
                 </div>
-                <p class="movie-description">${item.overview || 'Sin descripción'}</p>
             </div>
         `;
 
@@ -278,67 +287,42 @@ function displayResults(results) {
     });
 }
 
+// ========== REPRODUCTOR ==========
 async function detectExternalSources(title, year, type) {
     detectedSources = [];
-    const searchQuery = `${title} ${year || ''}`.toLowerCase().replace(/[^a-z0-9\s]/g, '').replace(/\s+/g, '-');
     
-    // Cuevana
-    detectedSources.push({
-        name: 'Cuevana',
-        url: 'https://play.cuevana.life',
-        quality: '1080p',
-        embedUrl: `https://play.cuevana.life/embed/${searchQuery}`,
-        priority: 1
-    });
-    
-    // Pandrama
-    detectedSources.push({
-        name: 'Pandrama',
-        url: 'https://pandrama.com',
-        quality: 'HD',
-        embedUrl: `https://pandrama.com/player/${searchQuery}`,
-        priority: 2
-    });
-    
-    // DoramasFlix
-    detectedSources.push({
-        name: 'DoramasFlix',
-        url: 'https://doramasflix.co',
-        quality: '720p',
-        embedUrl: `https://doramasflix.co/ver/${searchQuery}`,
-        priority: 1
-    });
-    
-    // VidSrc (API de scraping real)
     detectedSources.push({
         name: 'VidSrc',
-        url: 'https://vidsrc.to',
-        quality: '1080p',
         embedUrl: type === 'movie' 
             ? `https://vidsrc.to/embed/movie/${currentContent.id}`
             : `https://vidsrc.to/embed/tv/${currentContent.id}`,
+        quality: '1080p',
         priority: 1
     });
     
-    // 2Embed (API de scraping real)
     detectedSources.push({
         name: '2Embed',
-        url: 'https://www.2embed.to',
-        quality: 'HD',
         embedUrl: type === 'movie'
             ? `https://www.2embed.to/embed/tmdb/movie?id=${currentContent.id}`
             : `https://www.2embed.to/embed/tmdb/tv?id=${currentContent.id}`,
+        quality: 'HD',
         priority: 2
     });
     
-    detectedSources.sort((a, b) => a.priority - b.priority);
+    detectedSources.push({
+        name: 'Cuevana',
+        embedUrl: `https://play.cuevana.life/${type}/${currentContent.id}`,
+        quality: '720p',
+        priority: 3
+    });
+    
     return detectedSources;
 }
 
 async function openContent(content) {
     currentContent = content;
     
-    document.getElementById('resultsSection').classList.add('hidden');
+    hideAllSections();
     document.getElementById('playerSection').classList.remove('hidden');
 
     const title = content.title || content.name;
@@ -346,7 +330,7 @@ async function openContent(content) {
     const id = content.id;
 
     document.getElementById('sourcesDetected').innerHTML = `
-        <h4>Detectando Fuentes...</h4>
+        <h4>Detectando fuentes...</h4>
         <p style="color:#8e8ea0;margin-top:10px;">Analizando disponibilidad...</p>
     `;
 
@@ -371,28 +355,17 @@ async function openContent(content) {
         }
 
         const sources = await detectExternalSources(title, year, type);
-        await new Promise(r => setTimeout(r, 300));
         
-        if (sources.length > 0) {
-            document.getElementById('sourcesDetected').innerHTML = `
-                <h4>${sources.length} Fuentes Detectadas</h4>
-                <div class="sources-grid">
-                    ${sources.map((s, i) => `
-                        <div class="source-badge" onclick="playFromSource(${i})">
-                            ${s.name} - ${s.quality}
-                        </div>
-                    `).join('')}
-                </div>
-                <p style="margin-top:15px;color:#8e8ea0;font-size:13px;">
-                    Enlaces verificados | Click para reproducir
-                </p>
-            `;
-        } else {
-            document.getElementById('sourcesDetected').innerHTML = `
-                <h4>Buscando Fuentes...</h4>
-                <p style="color:#8e8ea0;margin-top:10px;">No disponible en este momento</p>
-            `;
-        }
+        document.getElementById('sourcesDetected').innerHTML = `
+            <h4>${sources.length} Fuentes Detectadas</h4>
+            <div class="sources-grid">
+                ${sources.map((s, i) => `
+                    <div class="source-badge" onclick="playFromSource(${i})">
+                        ${s.name} - ${s.quality}
+                    </div>
+                `).join('')}
+            </div>
+        `;
 
         if (type === 'tv' && details.number_of_seasons) {
             await loadEpisodes(id, 1);
@@ -400,11 +373,7 @@ async function openContent(content) {
             document.getElementById('episodesSection').innerHTML = '';
         }
 
-        if (sources.length > 0) {
-            loadPlayer(title, type, sources[0]);
-        } else {
-            loadPlayer(title, type, null);
-        }
+        loadPlayer(title, type, sources[0]);
         
     } catch (error) {
         console.error('Error:', error);
@@ -420,7 +389,7 @@ async function loadEpisodes(seriesId, season) {
         
         const grid = document.getElementById('episodesGrid');
         
-        data.episodes.forEach((ep, index) => {
+        data.episodes.forEach((ep) => {
             const card = document.createElement('div');
             card.className = 'episode-card';
             card.onclick = () => playEpisode(ep, season);
@@ -455,13 +424,12 @@ function loadPlayer(title, type, source) {
             ></iframe>
         `;
         isPlaying = true;
-        document.getElementById('playBtn').textContent = '⏸';
     } else {
         player.innerHTML = `
             <div style="width:100%;height:100%;background:#171717;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:20px;padding:20px;text-align:center;">
                 <div style="font-size:60px;color:#10a37f;">▶</div>
                 <p style="font-size:20px;font-weight:600;color:#fff;">${title}</p>
-                <p style="color:#8e8ea0;font-size:14px;">Selecciona una fuente para reproducir</p>
+                <p style="color:#8e8ea0;font-size:14px;">Selecciona una fuente</p>
             </div>
         `;
     }
@@ -471,96 +439,111 @@ function playFromSource(sourceIndex) {
     if (detectedSources[sourceIndex]) {
         const source = detectedSources[sourceIndex];
         const title = currentContent.title || currentContent.name;
-        
-        showNotification(`Conectando con ${source.name}...`);
-        
+        showNotification(`Cargando ${source.name}...`);
         setTimeout(() => {
             loadPlayer(title, currentContent.type, source);
-            document.getElementById('videoPlayer').scrollIntoView({ behavior: 'smooth', block: 'center' });
+            document.getElementById('videoPlayer').scrollIntoView({ behavior: 'smooth' });
         }, 500);
     }
 }
 
 async function playEpisode(episode, season) {
-    const title = `${currentContent.name} - S${season}E${episode.episode_number}: ${episode.name}`;
+    const title = `${currentContent.name} - S${season}E${episode.episode_number}`;
     document.getElementById('contentTitle').textContent = title;
     
-    showNotification('Cargando episodio...');
-    
-    // Crear fuentes con episodio específico
     detectedSources = [
         {
             name: 'VidSrc',
             embedUrl: `https://vidsrc.to/embed/tv/${currentContent.id}/${season}/${episode.episode_number}`,
-            quality: '1080p',
-            priority: 1
+            quality: '1080p'
         },
         {
             name: '2Embed',
             embedUrl: `https://www.2embed.to/embed/tmdb/tv?id=${currentContent.id}&s=${season}&e=${episode.episode_number}`,
-            quality: 'HD',
-            priority: 2
-        },
-        {
-            name: 'Cuevana',
-            embedUrl: `https://play.cuevana.life/serie/${currentContent.id}/${season}/${episode.episode_number}`,
-            quality: '720p',
-            priority: 3
+            quality: 'HD'
         }
     ];
     
     loadPlayer(title, 'episode', detectedSources[0]);
-    
-    document.getElementById('sourcesDetected').innerHTML = `
-        <h4>${detectedSources.length} Fuentes Disponibles</h4>
-        <div class="sources-grid">
-            ${detectedSources.map((s, i) => `
-                <div class="source-badge" onclick="playFromSource(${i})">
-                    ${s.name} - ${s.quality}
-                </div>
-            `).join('')}
-        </div>
-    `;
-    
-    document.getElementById('videoPlayer').scrollIntoView({ behavior: 'smooth', block: 'center' });
+    document.getElementById('videoPlayer').scrollIntoView({ behavior: 'smooth' });
 }
 
-function showNotification(message) {
-    const notification = document.createElement('div');
-    notification.style.cssText = `
-        position: fixed;
-        top: 20px;
-        right: 20px;
-        background: #10a37f;
-        color: white;
-        padding: 12px 20px;
-        border-radius: 6px;
-        z-index: 10000;
-        font-size: 14px;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.3);
-        animation: slideIn 0.3s ease;
-    `;
-    notification.textContent = message;
-    document.body.appendChild(notification);
+function playNow() {
+    if (detectedSources.length > 0) {
+        playFromSource(0);
+    }
+}
+
+function addToList() {
+    const myList = JSON.parse(localStorage.getItem('myList') || '[]');
+    const item = {
+        id: currentContent.id,
+        title: currentContent.title || currentContent.name,
+        poster_path: currentContent.poster_path,
+        type: currentContent.type
+    };
     
-    setTimeout(() => {
-        notification.style.opacity = '0';
-        notification.style.transform = 'translateY(-10px)';
-        notification.style.transition = 'all 0.3s ease';
-        setTimeout(() => notification.remove(), 300);
-    }, 2500);
+    if (!myList.find(i => i.id === item.id)) {
+        myList.push(item);
+        localStorage.setItem('myList', JSON.stringify(myList));
+        showNotification('Agregado a Mi Lista');
+    } else {
+        showNotification('Ya está en tu lista');
+    }
+}
+
+function shareContent() {
+    const title = currentContent.title || currentContent.name;
+    const url = window.location.href;
+    
+    if (navigator.share) {
+        navigator.share({ title, url });
+    } else {
+        navigator.clipboard.writeText(url);
+        showNotification('Enlace copiado');
+    }
+}
+
+function switchTab(tab) {
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    event.target.classList.add('active');
+    
+    const content = document.getElementById('tabContent');
+    
+    if (tab === 'episodes') {
+        content.innerHTML = '<div class="episodes-section" id="episodesSection"></div>';
+        if (currentContent.type === 'tv') {
+            loadEpisodes(currentContent.id, 1);
+        }
+    } else if (tab === 'similar') {
+        loadSimilar();
+    }
+}
+
+async function loadSimilar() {
+    const type = currentContent.type;
+    const id = currentContent.id;
+    
+    try {
+        const data = await fetch(`${TMDB_BASE}/${type}/${id}/similar?api_key=${TMDB_API_KEY}&language=es-ES`).then(r => r.json());
+        const content = document.getElementById('tabContent');
+        
+        content.innerHTML = '<div class="results-grid" id="similarGrid"></div>';
+        const grid = document.getElementById('similarGrid');
+        
+        data.results.slice(0, 12).forEach((item) => {
+            const card = createCarouselCard({...item, type});
+            card.className = 'movie-card';
+            grid.appendChild(card);
+        });
+    } catch (error) {
+        console.error('Error:', error);
+    }
 }
 
 function togglePlay() {
     isPlaying = !isPlaying;
     document.getElementById('playBtn').textContent = isPlaying ? '⏸' : '▶';
-}
-
-function skipTime(seconds) {
-    const progress = document.getElementById('progress');
-    let width = parseFloat(progress.style.width) || 0;
-    width = Math.max(0, Math.min(100, width + (seconds / 60) * 100));
-    progress.style.width = width + '%';
 }
 
 function seekVideo(event) {
@@ -579,14 +562,28 @@ function toggleFullscreen() {
     }
 }
 
-function backToSearch() {
-    document.getElementById('resultsSection').classList.add('hidden');
-    document.getElementById('searchSection').classList.remove('hidden');
-}
-
-function backToResults() {
-    document.getElementById('playerSection').classList.add('hidden');
-    document.getElementById('resultsSection').classList.remove('hidden');
+function showNotification(message) {
+    const notification = document.createElement('div');
+    notification.style.cssText = `
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        background: #10a37f;
+        color: white;
+        padding: 12px 20px;
+        border-radius: 6px;
+        z-index: 10000;
+        font-size: 14px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+    `;
+    notification.textContent = message;
+    document.body.appendChild(notification);
+    
+    setTimeout(() => {
+        notification.style.opacity = '0';
+        notification.style.transition = 'all 0.3s ease';
+        setTimeout(() => notification.remove(), 300);
+    }, 2500);
 }
 
 function addToHistory(query) {
@@ -615,7 +612,7 @@ function renderHistory() {
     const title = container.querySelector('.history-title');
     container.innerHTML = '';
     if (title) container.appendChild(title);
-    else container.innerHTML = '<div class="history-title">Búsquedas Recientes</div>';
+    else container.innerHTML = '<div class="history-title">Recientes</div>';
 
     searchHistory.forEach((query) => {
         const item = document.createElement('div');
@@ -628,12 +625,3 @@ function renderHistory() {
         container.appendChild(item);
     });
 }
-
-const style = document.createElement('style');
-style.textContent = `
-    @keyframes slideIn {
-        from { transform: translateX(100%); opacity: 0; }
-        to { transform: translateX(0); opacity: 1; }
-    }
-`;
-document.head.appendChild(style);

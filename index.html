@@ -10,57 +10,67 @@
     <div class="app-container">
         <aside class="sidebar" id="sidebar">
             <div class="sidebar-header">
-                <h1>AI Stream Finder</h1>
-                <button class="new-search-btn" onclick="newSearch()">Nueva Búsqueda</button>
+                <h1>AI Stream</h1>
+                <button class="new-search-btn" onclick="showSearch()">Buscar</button>
             </div>
             <nav class="sidebar-nav">
-                <a href="#" onclick="showSection('trending')" class="nav-item active">
-                    <span class="nav-icon">🔥</span>
-                    <span>Tendencias</span>
-                </a>
-                <a href="#" onclick="showSection('movies')" class="nav-item">
-                    <span class="nav-icon">🎬</span>
-                    <span>Películas</span>
-                </a>
-                <a href="#" onclick="showSection('series')" class="nav-item">
-                    <span class="nav-icon">📺</span>
-                    <span>Series</span>
-                </a>
-                <a href="#" onclick="showSection('genres')" class="nav-item">
-                    <span class="nav-icon">🎭</span>
-                    <span>Géneros</span>
-                </a>
+                <a href="#" onclick="showHome()" class="nav-item active" data-section="home">Inicio</a>
+                <a href="#" onclick="showMovies()" class="nav-item" data-section="movies">Películas</a>
+                <a href="#" onclick="showSeries()" class="nav-item" data-section="series">Series</a>
+                <a href="#" onclick="showMyList()" class="nav-item" data-section="mylist">Mi Lista</a>
             </nav>
             <div class="search-history" id="searchHistory">
-                <div class="history-title">Búsquedas Recientes</div>
+                <div class="history-title">Recientes</div>
             </div>
         </aside>
 
         <main class="main-content">
             <button class="mobile-menu-btn" onclick="toggleSidebar()">☰</button>
             
-            <div class="search-section" id="searchSection">
-                <div class="welcome-message">
-                    <h2>Búsqueda Inteligente en Tiempo Real</h2>
-                    <p>IA analizando millones de fuentes | Imágenes reales | Streaming automático</p>
+            <!-- HOME SECTION -->
+            <div class="home-section" id="homeSection">
+                <div class="search-bar-top">
+                    <input type="text" id="searchInputTop" placeholder="Buscar películas, series..." class="search-input-top">
+                    <button onclick="searchFromTop()" class="search-btn-top">Buscar</button>
                 </div>
-                <div class="search-container">
-                    <input type="text" id="searchInput" placeholder="Buscar películas, series..." class="search-input">
-                    <button onclick="searchContent()" class="search-btn">Buscar</button>
+
+                <div class="carousel-section">
+                    <h2 class="section-title">Tendencias Hoy</h2>
+                    <div class="carousel" id="trendingCarousel"></div>
                 </div>
-                <div class="ai-status">
-                    <span class="status-dot"></span>
-                    <span>IA conectada</span>
+
+                <div class="carousel-section">
+                    <h2 class="section-title">Películas Populares</h2>
+                    <div class="carousel" id="moviesCarousel"></div>
                 </div>
-                <div class="trending-section" id="trendingHome">
-                    <h3 class="section-title">Tendencias Hoy</h3>
-                    <div class="trending-grid" id="trendingGrid"></div>
+
+                <div class="carousel-section">
+                    <h2 class="section-title">Series Populares</h2>
+                    <div class="carousel" id="seriesCarousel"></div>
+                </div>
+
+                <div class="carousel-section">
+                    <h2 class="section-title">Acción</h2>
+                    <div class="carousel" id="actionCarousel"></div>
                 </div>
             </div>
 
+            <!-- SEARCH MODAL -->
+            <div class="search-modal hidden" id="searchModal">
+                <div class="search-modal-content">
+                    <button class="close-modal" onclick="closeSearch()">✕</button>
+                    <h2>Buscar Contenido</h2>
+                    <div class="search-container">
+                        <input type="text" id="searchInput" placeholder="Buscar películas, series..." class="search-input">
+                        <button onclick="searchContent()" class="search-btn">Buscar</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- RESULTS SECTION -->
             <div class="results-section hidden" id="resultsSection">
                 <div class="results-header">
-                    <button onclick="backToSearch()" class="back-btn">← Volver</button>
+                    <button onclick="backToHome()" class="back-btn">← Volver</button>
                     <div class="search-info">
                         <h3 id="searchQuery"></h3>
                         <span class="results-count" id="resultsCount"></span>
@@ -68,15 +78,16 @@
                 </div>
                 <div class="ai-thinking hidden" id="aiThinking">
                     <div class="loader"></div>
-                    <p class="main-text">Escaneando fuentes...</p>
-                    <p class="sub-text" id="scanStatus">Analizando disponibilidad</p>
+                    <p class="main-text">Buscando...</p>
+                    <p class="sub-text" id="scanStatus">Analizando fuentes</p>
                 </div>
                 <div class="results-grid" id="resultsGrid"></div>
             </div>
 
+            <!-- PLAYER SECTION -->
             <div class="player-section hidden" id="playerSection">
                 <div class="player-header">
-                    <button onclick="backToResults()" class="back-btn">← Resultados</button>
+                    <button onclick="backFromPlayer()" class="back-btn">← Volver</button>
                 </div>
                 <div class="player-container">
                     <div class="video-player" id="videoPlayer"></div>
@@ -86,8 +97,6 @@
                         </div>
                         <div class="controls-row">
                             <button onclick="togglePlay()" id="playBtn" class="control-btn">▶</button>
-                            <button onclick="skipTime(-10)" class="control-btn">-10s</button>
-                            <button onclick="skipTime(10)" class="control-btn">+10s</button>
                             <button onclick="toggleFullscreen()" class="control-btn">⛶</button>
                         </div>
                     </div>
@@ -99,8 +108,8 @@
                             <h2 id="contentTitle"></h2>
                             <div class="meta-info" id="metaInfo"></div>
                             <div class="action-buttons">
-                                <button class="action-btn primary" onclick="playNow()">Reproducir Ahora</button>
-                                <button class="action-btn" onclick="addToList()">Mi Lista</button>
+                                <button class="action-btn primary" onclick="playNow()">Reproducir</button>
+                                <button class="action-btn" onclick="addToList()">+ Mi Lista</button>
                                 <button class="action-btn" onclick="shareContent()">Compartir</button>
                             </div>
                         </div>
@@ -111,7 +120,6 @@
                         <div class="tabs">
                             <button class="tab active" onclick="switchTab('episodes')">Episodios</button>
                             <button class="tab" onclick="switchTab('similar')">Similares</button>
-                            <button class="tab" onclick="switchTab('comments')">Comentarios</button>
                         </div>
                         <div class="tab-content" id="tabContent">
                             <div class="episodes-section" id="episodesSection"></div>
