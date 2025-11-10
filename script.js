@@ -19,6 +19,7 @@ let detectedSources = [];
 // Inicialización
 document.addEventListener('DOMContentLoaded', () => {
     loadSearchHistory();
+    loadTrending();
     
     document.getElementById('searchInput').addEventListener('keypress', (e) => {
         if (e.key === 'Enter') searchContent();
@@ -33,6 +34,157 @@ document.addEventListener('DOMContentLoaded', () => {
 
 function toggleSidebar() {
     document.getElementById('sidebar').classList.toggle('active');
+}
+
+function showSection(section) {
+    document.querySelectorAll('.nav-item').forEach(item => item.classList.remove('active'));
+    event.target.closest('.nav-item').classList.add('active');
+    
+    if (section === 'trending') {
+        loadTrending();
+    } else if (section === 'movies') {
+        searchByType('movie');
+    } else if (section === 'series') {
+        searchByType('tv');
+    }
+}
+
+async function loadTrending() {
+    try {
+        const data = await fetch(`${TMDB_BASE}/trending/all/day?api_key=${TMDB_API_KEY}&language=es-ES`).then(r => r.json());
+        const grid = document.getElementById('trendingGrid');
+        if (!grid) return;
+        
+        grid.innerHTML = '';
+        data.results.slice(0, 12).forEach((item, index) => {
+            const card = createMovieCard(item, index);
+            grid.appendChild(card);
+        });
+    } catch (error) {
+        console.error('Error loading trending:', error);
+    }
+}
+
+async function searchByType(type) {
+    document.getElementById('searchSection').classList.add('hidden');
+    document.getElementById('resultsSection').classList.remove('hidden');
+    document.getElementById('searchQuery').textContent = type === 'movie' ? 'Películas Populares' : 'Series Populares';
+    document.getElementById('aiThinking').classList.remove('hidden');
+    
+    try {
+        const data = await fetch(`${TMDB_BASE}/${type}/popular?api_key=${TMDB_API_KEY}&language=es-ES&page=1`).then(r => r.json());
+        document.getElementById('aiThinking').classList.add('hidden');
+        document.getElementById('resultsCount').textContent = `${data.results.length} resultados`;
+        displayResults(data.results.map(item => ({...item, type})));
+    } catch (error) {
+        document.getElementById('aiThinking').classList.add('hidden');
+    }
+}
+
+function createMovieCard(item, index) {
+    const card = document.createElement('div');
+    card.className = 'movie-card';
+    card.style.animationDelay = `${index * 0.05}s`;
+    card.onclick = () => openContent({...item, type: item.media_type || 'movie'});
+    
+    const title = item.title || item.name;
+    const year = (item.release_date || item.first_air_date || '').split('-')[0];
+    const poster = item.poster_path ? `${TMDB_IMG}${item.poster_path}` : '';
+    const rating = item.vote_average ? item.vote_average.toFixed(1) : 'N/A';
+    
+    card.innerHTML = `
+        <div class="movie-poster">
+            ${poster ? `<img src="${poster}" alt="${title}" loading="lazy">` : ''}
+            <div class="year-badge">${year || 'N/A'}</div>
+            <div class="quality-badge">HD</div>
+        </div>
+        <div class="movie-info">
+            <h3>${title}</h3>
+            <div class="movie-meta">
+                <span>${rating}/10</span>
+            </div>
+        </div>
+    `;
+    return card;
+}
+
+function playNow() {
+    if (detectedSources.length > 0) {
+        playFromSource(0);
+    } else {
+        showNotification('No hay fuentes disponibles');
+    }
+}
+
+function addToList() {
+    const myList = JSON.parse(localStorage.getItem('myList') || '[]');
+    const item = {
+        id: currentContent.id,
+        title: currentContent.title || currentContent.name,
+        poster: currentContent.poster_path
+    };
+    
+    if (!myList.find(i => i.id === item.id)) {
+        myList.push(item);
+        localStorage.setItem('myList', JSON.stringify(myList));
+        showNotification('Agregado a Mi Lista');
+    } else {
+        showNotification('Ya está en tu lista');
+    }
+}
+
+function shareContent() {
+    const title = currentContent.title || currentContent.name;
+    const url = window.location.href;
+    
+    if (navigator.share) {
+        navigator.share({
+            title: title,
+            text: `Mira ${title} en AI Stream Finder`,
+            url: url
+        });
+    } else {
+        navigator.clipboard.writeText(url);
+        showNotification('Enlace copiado al portapapeles');
+    }
+}
+
+function switchTab(tab) {
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    event.target.classList.add('active');
+    
+    const content = document.getElementById('tabContent');
+    
+    if (tab === 'episodes') {
+        content.innerHTML = '<div class="episodes-section" id="episodesSection"></div>';
+        if (currentContent.type === 'tv') {
+            loadEpisodes(currentContent.id, 1);
+        }
+    } else if (tab === 'similar') {
+        loadSimilar();
+    } else if (tab === 'comments') {
+        content.innerHTML = '<p style="color:#8e8ea0;padding:20px;">Comentarios próximamente...</p>';
+    }
+}
+
+async function loadSimilar() {
+    const type = currentContent.type;
+    const id = currentContent.id;
+    
+    try {
+        const data = await fetch(`${TMDB_BASE}/${type}/${id}/similar?api_key=${TMDB_API_KEY}&language=es-ES`).then(r => r.json());
+        const content = document.getElementById('tabContent');
+        
+        content.innerHTML = '<div class="results-grid" id="similarGrid"></div>';
+        const grid = document.getElementById('similarGrid');
+        
+        data.results.slice(0, 12).forEach((item, index) => {
+            const card = createMovieCard({...item, type}, index);
+            grid.appendChild(card);
+        });
+    } catch (error) {
+        console.error('Error loading similar:', error);
+    }
 }
 
 function newSearch() {
@@ -109,19 +261,16 @@ function displayResults(results) {
         card.innerHTML = `
             <div class="movie-poster">
                 ${poster ? `<img src="${poster}" alt="${title}" loading="lazy">` : ''}
+                <div class="year-badge">${year || 'N/A'}</div>
+                <div class="quality-badge">HD</div>
             </div>
             <div class="movie-info">
                 <h3>${title}</h3>
                 <div class="movie-meta">
-                    <span>${year || 'N/A'}</span>
                     <span>${rating}/10</span>
                     <span>${item.type === 'tv' ? 'Serie' : 'Película'}</span>
                 </div>
                 <p class="movie-description">${item.overview || 'Sin descripción'}</p>
-                <div class="movie-badges">
-                    <span class="movie-badge">HD</span>
-                    ${item.type === 'tv' ? '<span class="movie-badge">Episodios</span>' : ''}
-                </div>
             </div>
         `;
 

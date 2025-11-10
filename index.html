@@ -13,6 +13,24 @@
                 <h1>AI Stream Finder</h1>
                 <button class="new-search-btn" onclick="newSearch()">Nueva Búsqueda</button>
             </div>
+            <nav class="sidebar-nav">
+                <a href="#" onclick="showSection('trending')" class="nav-item active">
+                    <span class="nav-icon">🔥</span>
+                    <span>Tendencias</span>
+                </a>
+                <a href="#" onclick="showSection('movies')" class="nav-item">
+                    <span class="nav-icon">🎬</span>
+                    <span>Películas</span>
+                </a>
+                <a href="#" onclick="showSection('series')" class="nav-item">
+                    <span class="nav-icon">📺</span>
+                    <span>Series</span>
+                </a>
+                <a href="#" onclick="showSection('genres')" class="nav-item">
+                    <span class="nav-icon">🎭</span>
+                    <span>Géneros</span>
+                </a>
+            </nav>
             <div class="search-history" id="searchHistory">
                 <div class="history-title">Búsquedas Recientes</div>
             </div>
@@ -33,6 +51,10 @@
                 <div class="ai-status">
                     <span class="status-dot"></span>
                     <span>IA conectada</span>
+                </div>
+                <div class="trending-section" id="trendingHome">
+                    <h3 class="section-title">Tendencias Hoy</h3>
+                    <div class="trending-grid" id="trendingGrid"></div>
                 </div>
             </div>
 
@@ -76,11 +98,25 @@
                         <div class="title-section">
                             <h2 id="contentTitle"></h2>
                             <div class="meta-info" id="metaInfo"></div>
+                            <div class="action-buttons">
+                                <button class="action-btn primary" onclick="playNow()">Reproducir Ahora</button>
+                                <button class="action-btn" onclick="addToList()">Mi Lista</button>
+                                <button class="action-btn" onclick="shareContent()">Compartir</button>
+                            </div>
                         </div>
                     </div>
                     <p id="contentDescription"></p>
                     <div class="sources-detected" id="sourcesDetected"></div>
-                    <div class="episodes-section" id="episodesSection"></div>
+                    <div class="tabs-section">
+                        <div class="tabs">
+                            <button class="tab active" onclick="switchTab('episodes')">Episodios</button>
+                            <button class="tab" onclick="switchTab('similar')">Similares</button>
+                            <button class="tab" onclick="switchTab('comments')">Comentarios</button>
+                        </div>
+                        <div class="tab-content" id="tabContent">
+                            <div class="episodes-section" id="episodesSection"></div>
+                        </div>
+                    </div>
                 </div>
             </div>
         </main>
